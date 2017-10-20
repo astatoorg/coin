@@ -1,0 +1,97 @@
+# Copyright (c) 2009-2010 Satoshi Nakamoto
+# Distributed under the MIT/X11 software license, see the accompanying
+# file license.txt or http://www.opensource.org/licenses/mit-license.php.
+
+USE_UPNP:=0
+
+OBJECTS_DIR   = build-win/
+
+INCLUDEPATHS= \
+ -I"C:\deps\boost" \
+ -I"C:\deps\db\build_unix" \
+ -I"C:\deps\ssl\include" 
+
+LIBPATHS= \
+ -L"C:\deps\boost\stage\lib" \
+ -L"C:\deps\db\build_unix" \
+ -L"C:\deps\ssl" 
+ 
+
+INCPATH = -I/usr/share/qt4/mkspecs/linux-g++-64 -I/usr/include/qt4/QtCore -I/usr/include/qt4/QtGui -I/usr/include/qt4 -Isrc -Isrc/json -Isrc/qt -Ibuild -Ibuild -I/usr/x86_64-w64-mingw32/include
+
+
+LIBS= \
+ -l boost_system-mgw46-mt-s-1_49 \
+ -l boost_filesystem-mgw46-mt-s-1_49 \
+ -l boost_program_options-mgw46-mt-s-1_49 \
+ -l boost_thread-mgw46-mt-s-1_49 \
+ -l x86_64-w64-mingw32 \
+ -l db_cxx \
+ -l ssl \
+ -l crypto 
+
+
+DEFS=-DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -DUSE_IPV6 -D__NO_SYSTEM_INCLUDES
+DEBUGFLAGS=-g
+CFLAGS= -O2 -w -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+
+TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
+
+
+
+LIBS += -l kernel32 -l user32 -l gdi32 -l comdlg32 -l winspool -l winmm -l shell32 -l comctl32 -l ole32 -l oleaut32 -l uuid -l rpcrt4 -l advapi32 -l ws2_32 -l mswsock -l shlwapi
+
+# TODO: make the mingw builds smarter about dependencies, like the linux/osx builds are
+HEADERS = $(wildcard *.h)
+
+OBJS= \
+    build-win/version.o \
+    build-win/checkpoints.o \
+    build-win/netbase.o \
+    build-win/addrman.o \
+    build-win/crypter.o \
+    build-win/key.o \
+    build-win/db.o \
+    build-win/init.o \
+    build-win/irc.o \
+    build-win/keystore.o \
+    build-win/main.o \
+    build-win/net.o \
+    build-win/protocol.o \
+    build-win/bitcoinrpc.o \
+    build-win/rpcdump.o \
+    build-win/rpcnet.o \
+    build-win/rpcrawtransaction.o \
+    build-win/script.o \
+    build-win/scrypt.o \
+    build-win/sync.o \
+    build-win/util.o \
+    build-win/wallet.o \
+    build-win/walletdb.o \
+    build-win/noui.o
+
+
+all: astato.exe
+
+build-win/scrypt.o: scrypt.c
+	gcc -c $(CFLAGS) -o $@ $^
+
+build-win/%.o: %.cpp $(HEADERS)
+	g++ -c $(CFLAGS) -o $@ $<
+
+astato.exe: $(OBJS:build-win/%=build-win/%)
+	g++ $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
+
+TESTOBJS := $(patsubst test/%.cpp,obj-test/%.o,$(wildcard test/*.cpp))
+
+obj-test/%.o: test/%.cpp $(HEADERS)
+	g++ -c $(TESTDEFS) $(CFLAGS) -o $@ $<
+
+test_astato.exe: $(TESTOBJS) $(filter-out build-win/init.o,$(OBJS:build-win/%=build-win/%))
+	g++ $(CFLAGS) -o $@ $(LIBPATHS) $^ -lboost_unit_test_framework $(LIBS)
+
+clean:
+	-del /Q astato test_astato
+	-del /Q build-win\*
+	-del /Q obj-test\*
+	-del /Q build.h
