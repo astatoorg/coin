@@ -10,7 +10,7 @@
 CC            = i686-w64-mingw32.static-gcc
 CXX           = i686-w64-mingw32.static-g++
 
-DEFINES       = -DUNICODE -DQT_GUI -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -DBOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN -D__NO_SYSTEM_INCLUDES -DUSE_IPV6=1 -DWIN32 -D_MT -DQT_NO_DEBUG -DQT_GUI_LIB -DQT_CORE_LIB -DQT_THREAD_SUPPORT
+DEFINES       = -DUNICODE -DQT_GUI -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -DBOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN -D__NO_SYSTEM_INCLUDES -DUSE_IPV6=1 -DWIN32 -D_MT -DQT_NO_DEBUG -DQT_GUI_LIB -DQT_CORE_LIB -DQT_THREAD_SUPPORT -DDCHECKPOINT
 CFLAGS        = -pipe -fno-keep-inline-dllexport -msse2 -O2 -Wall -Wextra $(DEFINES)
 CXXFLAGS      = -pipe -fno-keep-inline-dllexport -msse2 -O2 -frtti -fexceptions -mthreads -fdiagnostics-show-option -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector $(DEFINES)
 INCPATH       = -I'../mxe/usr/i686-w64-mingw32.static/qt/include/QtCore' -I'../mxe/usr/i686-w64-mingw32.static/qt/include/QtGui' -I'../mxe/usr/i686-w64-mingw32.static/qt/include' -I'src' -I'src/json' -I'src/qt' -I'c:/deps/boost' -I'c:/deps/db/build_unix' -I'c:/deps/ssl/include' -I'../mxe/usr/i686-w64-mingw32.static/qt/include/ActiveQt' -I'build-win' -I'../mxe/usr/i686-w64-mingw32.static/qt/mkspecs/win32-g++-4.6' -I'../mxe/usr/i686-w64-mingw32.static/include'

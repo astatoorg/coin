@@ -1805,12 +1805,13 @@ bool CBlock::AcceptBlock()
         if (!tx.IsFinal(nHeight, GetBlockTime()))
             return DoS(10, error("AcceptBlock() : contains a non-final transaction"));
 
+    //Update checkpoints
+    if (!Checkpoints::ScanTrust(nHeight,hash.ToString()))
+    return DoS(100, error("AcceptBlock() : rejected by checkpoint ScanTrust failed %d", nHeight));
+
     // Check that the block chain matches the known block chain up to a checkpoint
 	if (!Checkpoints::CheckBlock(nHeight, hash))
     return DoS(100, error("AcceptBlock() : rejected by checkpoint lockin at %d", nHeight));
-
-    if (!Checkpoints::ScanTrust(nHeight,hash.ToString()))
-    return DoS(100, error("AcceptBlock() : rejected by checkpoint ScanTrust failed %d", nHeight));
 
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
@@ -1831,9 +1832,6 @@ bool CBlock::AcceptBlock()
             if (nBestHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
-
-    if (!Checkpoints::PushCheckpoint(nHeight,hash))
-        return error("PushCheckpoint() : FAILED");
 
     return true;
 }

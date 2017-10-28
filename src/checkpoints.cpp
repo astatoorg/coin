@@ -3,16 +3,12 @@
 // Copyright (c) 2017 Astato Developers.
 // Distributed under the MIT/X11 software license, see the accompanying).
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-// USE -DDCHECKPOINT on makefile to active Linux CURL support and Linux hostnames, checkpoint will be static and dynamic
+// USE -DDCHECKPOINT on makefile to active. Checkpoint will be static and dynamic
 // Without -DDCHECKPOINT checkpoint will be done only statically (traditional)
-// For seednodes is recomended -DDCHECKPOINT
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
 #include <boost/foreach.hpp>
-#ifdef DCHECKPOINT
-  #include <curlpp/cURLpp.hpp>
-  #include <curlpp/Options.hpp>
-#endif
+#include <boost/asio.hpp>
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -27,6 +23,7 @@
 #include <boost/thread/thread.hpp>
 #include <unistd.h>
 #include <limits.h>
+using boost::asio::ip::tcp;
 
    
 namespace http = boost::network::http;
@@ -94,21 +91,22 @@ namespace Checkpoints
     //
 
     const int sizeofscan = 100;
-    const int checkpointinterval = 4;
+    const int checkpointinterval = 6; 
     const int checkpointloadinterval = 40; //bom numero 40
-    const std::time_t updatetimeinterval = 600; //bom numero 600
+    const std::time_t updatetimeinterval = 900; //bom numero 600
     bool loadedchecks = false;
-    bool verbose = false;
+    bool verbose = false; //Trace for debug
     int checkpointnosavecount = 5;
     int checkpointloadintervalcount = 0;
-    std::string chkaddr = "http://node001.astato.org:21680"; // descentralizar, em desenvolvimento
+    std::string chkaddr = "node001.astato.org"; // port 21680 descentralizar, em desenvolvimento
+    std::string addrport = "21680";
     std::string lindice[sizeofscan];
     std::string lhash[sizeofscan];
     std::time_t lastupdate = 0;
     std::stringstream readBuffer;
    
     bool is_astato_node() {
-     #ifdef DCHECKPOINT
+      #ifdef LINUX
       char hostname[HOST_NAME_MAX];
       gethostname(hostname, HOST_NAME_MAX);
       std::string sname(hostname);
@@ -118,12 +116,78 @@ namespace Checkpoints
           if (verbose) {std::cout << sname << " " << instr << std::endl;}
           return true;           
       } 
-     #endif
+      #endif
       return false;
     }                   
 
+  std::string GetChkContent(std::string addr, std::string addrport) {
+    try {
+        boost::asio::io_service io_service;
+        std::stringstream bff;
+        tcp::resolver resolver(io_service);
+        tcp::resolver::query query(addr, addrport);
+        tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+        tcp::resolver::iterator end;
+        tcp::socket socket(io_service);
+        boost::system::error_code error = boost::asio::error::host_not_found;
+        while (error && endpoint_iterator != end) {
+            socket.close();
+            socket.connect(*endpoint_iterator++, error);
+        }
+        if (error)
+            throw boost::system::system_error(error);
+        boost::asio::streambuf request;
+        std::ostream request_stream(&request);
+        request_stream << "GET " << addr << " HTTP/1.0\r\n";
+        request_stream << "Host: " << addr << "\r\n";
+        request_stream << "Accept: */*\r\n";
+        request_stream << "Connection: close\r\n\r\n";
+        boost::asio::write(socket, request);
+        boost::asio::streambuf response;
+        boost::asio::read_until(socket, response, "\r\n");
+        std::istream response_stream(&response);
+        std::string http_version;
+        response_stream >> http_version;
+        unsigned int status_code;
+        response_stream >> status_code;
+        std::string status_message;
+        std::getline(response_stream, status_message);
+        if (verbose) std::cout << status_code << std::endl;
+        if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
+            std::cerr << "Invalid response\n";
+            return "error";
+        }
+        if (status_code != 200) {
+            std::cerr << "Response returned with status code " << status_code << "\n";
+            return "Error";
+        }
+        boost::asio::read_until(socket, response, "\r\n\r\n");
+        std::string header;
+        while (std::getline(response_stream, header) && header != "\r") {
+          if (verbose) std::cerr << header << "\n";   
+        }
+        while (true) { 
+            size_t n = boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error);
+            if (!error)
+            {
+                if (n)
+                   bff  << &response;                                      
+            }            
+            if (error == boost::asio::error::eof) break;
+            if (error) throw boost::system::system_error(error);
+        }
+        return bff.str(); 
+    }
+    catch (std::exception &e) {
+        std::cerr << "Exception: " << e.what() << "\n";
+    }
+    return 0;
+  }
+
+
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of // Yo dawg, this is the secret. Checkpoint 0 hash == Genesis block hash.
+        (           164264, uint256("0x83f5e0d8f3032ceb25aada77bb79e67209fd15f9810e2e95074c901442d903c5"))
         (           126744, uint256("0x6170444f83c4d0a078660d34a2f7fd76af28f74cb559d56d53e118c6575b5e62"))
         (           114330, uint256("0x99bf6c8b449368074bc4831151b05307e469a93a825c14c02cd79cd789998aca"))
         (            37030, uint256("0x38b86db28b2844c26135a805e972622807a8dad0f482920ad2a12818d184357a"))
@@ -150,26 +214,11 @@ namespace Checkpoints
        if (is_astato_node()) {
            chkaddr = "file://"+GetDataDir().string() + "/checkpoints.db"; 
        }
-       CURL *curl;
-       CURLcode res;
-       curl_global_init(CURL_GLOBAL_ALL);
-       curl = curl_easy_init();
-       if(curl) {
-          curl_easy_setopt(curl, CURLOPT_URL, chkaddr.c_str());
-          curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-          curl_easy_setopt(curl, CURLOPT_WRITEDATA, &strBuffer);
-          res = curl_easy_perform(curl);
-          readBuffer.clear();
-          readBuffer << strBuffer;
-          if (verbose) {std::cout << "Conteudo da String: " << strBuffer;} 
-          if(res != CURLE_OK)
-             {
-                fprintf(stderr, "curl_easy_perform() failed: %s\n",curl_easy_strerror(res));
-             }
-          curl_easy_cleanup(curl);  
-      }
-      curl_global_cleanup();
-      if (verbose) {std::cout << "Carregado " << 1 << std::endl;}
+      readBuffer << GetChkContent(chkaddr,addrport);
+      if (verbose) {
+          std::cout << "Carregado " << 1 << std::endl;
+          std::cout << "Conteudo do buffer: " << readBuffer.str() << std::endl << "Fim do conteudo do buffer" << std::endl;
+         }
       if (is_astato_node())
        {
          int i; 
@@ -243,20 +292,9 @@ namespace Checkpoints
 
     bool ScanTrust(int nHeight, std::string hash)
     {  
-       std::string StrnHeight; 
+       #ifdef DCHECKPOINT        
        LoadCheckPoints();
-       for (int i=0;i<sizeofscan;i++) 
-       {
-            StrnHeight = ToString(nHeight);
-            if (StrnHeight == lindice[i])
-            {
-               if (uint256(hash) != uint256(lhash[i]))
-               {
-                  std::cout << "Opss.. its wrong. "<< StrnHeight << std::endl << hash <<std::endl << lhash[i] << std::endl;
-                  return false;
-               } 
-            }            
-       }        
+       #endif
        return true;   
     }
 
@@ -265,11 +303,19 @@ namespace Checkpoints
         if (fTestNet) return true; // Testnet has no checkpoints
         MapCheckpoints::const_iterator i = mapCheckpoints.find(nHeight);
         if (i == mapCheckpoints.end()) return true;
+        if (verbose) {
+           if (hash == i->second) {
+               std::cout << "Check Point: "<< nHeight <<" Loaded Hash: " << i->second.ToString() << std::endl;
+           } else {
+               std::cout << "Verify Block: "<< nHeight <<" Possible hash check point conflict: " << i->second.ToString() << std::endl;
+           }
+        }
         return hash == i->second;
     }
 
     bool SavePoint(int nHeight, std::string hash)
     {
+       #ifdef DCHECKPOINT
        std::time_t now;
        std::time(&now);
        if (verbose) {std::cout << now << " - " << lastupdate << " = " << now-lastupdate << std::endl;} 
@@ -299,13 +345,10 @@ namespace Checkpoints
               checkpointloadintervalcount = 0;
            }           
        }
+       #endif
        return true;
     }
 
-    bool PushCheckpoint(int nHeight, const uint256& hash)
-    {
-       return true;
-    }
 
     int GetTotalBlocksEstimate()
     {
