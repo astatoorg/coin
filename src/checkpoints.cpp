@@ -92,9 +92,9 @@ namespace Checkpoints
 
     const int sizeofscan = 100;
     const int checkpointinterval = 6; 
-    const int checkpointloadinterval = 40; //bom numero 40
-    const std::time_t updatetimeinterval = 900; //bom numero 600
-    bool loadedchecks = false;
+    const int checkpointloadinterval = 40; //bom numero 40..60
+    const std::time_t updatetimeinterval = 900; //bom numero 600..900
+    bool loadedchecks = false; //start lodchecks as false
     bool verbose = false; //Trace for debug
     int checkpointnosavecount = 5;
     int checkpointloadintervalcount = 0;
@@ -181,12 +181,13 @@ namespace Checkpoints
     catch (std::exception &e) {
         std::cerr << "Exception: " << e.what() << "\n";
     }
-    return 0;
+    return "";
   }
 
 
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of // Yo dawg, this is the secret. Checkpoint 0 hash == Genesis block hash.
+        (           176976, uint256("0x47dcbd7ff79b5c8008a0e0d77e6c8ec1ee10841fdae3140bc55b7b3d197996c7"))
         (           164264, uint256("0x83f5e0d8f3032ceb25aada77bb79e67209fd15f9810e2e95074c901442d903c5"))
         (           126744, uint256("0x6170444f83c4d0a078660d34a2f7fd76af28f74cb559d56d53e118c6575b5e62"))
         (           114330, uint256("0x99bf6c8b449368074bc4831151b05307e469a93a825c14c02cd79cd789998aca"))
@@ -211,10 +212,14 @@ namespace Checkpoints
     static void GetCheckpointsFile () {  
        #ifdef DCHECKPOINT
        std::string strBuffer;            
-       if (is_astato_node()) {
-           chkaddr = "file://"+GetDataDir().string() + "/checkpoints.db"; 
-       }
-      readBuffer << GetChkContent(chkaddr,addrport);
+       //if (is_astato_node()) {
+       //    chkaddr = "file://"+GetDataDir().string() + "/checkpoints.db"; 
+       //    std::ifstream in(chkaddr.c_str());
+       //    readBuffer << in.rdbuf();
+       //    if (verbose) std::cout << "Local file content: " << readBuffer;
+       //} else {
+           readBuffer << GetChkContent(chkaddr,addrport);
+       //} 
       if (verbose) {
           std::cout << "Carregado " << 1 << std::endl;
           std::cout << "Conteudo do buffer: " << readBuffer.str() << std::endl << "Fim do conteudo do buffer" << std::endl;
@@ -231,7 +236,9 @@ namespace Checkpoints
             strchk[i] = ln;
             i++;  
             if (i >= sizeofscan) i = 0;
+            if (verbose) std::cout << "RbLn: " << i << ", "; 
          }
+         if (verbose) std::cout << std::endl;
          std::string ffname = GetDataDir().string() + "/checkpoints.db"; 
          std::ofstream out; 
          out.open(ffname.c_str(), std::ios::ate);      
@@ -275,7 +282,7 @@ namespace Checkpoints
             MapCheckpoints::const_iterator iii = mapCheckpoints.find(0);
             std::cout << iii->first<<std::endl;    
             std::cout << iii->second.ToString()<<std::endl;  
-            MapCheckpoints::const_iterator iv = mapCheckpoints.find(114330);
+            MapCheckpoints::const_iterator iv = mapCheckpoints.find(176976);
             std::cout << iv->first<<std::endl;    
             std::cout << iv->second.ToString()<<std::endl;  
             std::cout << "CheckPoints Atualizados" << std::endl;
@@ -302,7 +309,10 @@ namespace Checkpoints
     {
         if (fTestNet) return true; // Testnet has no checkpoints
         MapCheckpoints::const_iterator i = mapCheckpoints.find(nHeight);
-        if (i == mapCheckpoints.end()) return true;
+        if (i == mapCheckpoints.end()) {
+           if (verbose) std::cout << "Block: "<< nHeight << " not is Check Point" << std::endl; 
+           return true;
+        }
         if (verbose) {
            if (hash == i->second) {
                std::cout << "Check Point: "<< nHeight <<" Loaded Hash: " << i->second.ToString() << std::endl;
