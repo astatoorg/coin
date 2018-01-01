@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QSystemTrayIcon>
 
+#include <QApplication>
+
 class TransactionTableModel;
 class ClientModel;
 class WalletModel;
@@ -137,6 +139,7 @@ public slots:
     */
     void askFee(qint64 nFeeRequired, bool *payFee);
     void handleURI(QString strURI);
+
 
 private slots:
     /** Switch to overview (home) page */

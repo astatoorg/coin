@@ -23,6 +23,8 @@
 #include <boost/thread/thread.hpp>
 #include <unistd.h>
 #include <limits.h>
+
+
 using boost::asio::ip::tcp;
 
    
@@ -58,6 +60,7 @@ int run_srv() {
               server server_(options.address("0.0.0.0").port("21680"));
               server_.run();
 }
+
 
 int chkp_srv() 
 {
@@ -107,20 +110,23 @@ namespace Checkpoints
    
     bool is_astato_node() {
       #ifdef LINUX
-      char hostname[HOST_NAME_MAX];
-      gethostname(hostname, HOST_NAME_MAX);
-      std::string sname(hostname);
-      sname = '.'+sname;
-      int instr = sname.find("astato.org", 0);
-      if ( instr > 0) {
-          if (verbose) {std::cout << sname << " " << instr << std::endl;}
-          return true;           
-      } 
+       #ifdef DCHECKPOINT
+         char hostname[HOST_NAME_MAX];
+         gethostname(hostname, HOST_NAME_MAX);
+         std::string sname(hostname);
+         sname = '.'+sname;
+         int instr = sname.find("dev.astato.org", 0);
+         if ( instr > 0) {
+            if (verbose) {std::cout << sname << " " << instr << std::endl;}
+            return true;           
+         } 
+       #endif
       #endif
       return false;
     }                   
 
   std::string GetChkContent(std::string addr, std::string addrport) {
+   #ifdef DCHECKPOINT
     try {
         boost::asio::io_service io_service;
         std::stringstream bff;
@@ -181,12 +187,18 @@ namespace Checkpoints
     catch (std::exception &e) {
         std::cerr << "Exception: " << e.what() << "\n";
     }
+    #endif
     return "";
   }
 
 
     static MapCheckpoints mapCheckpoints =
         boost::assign::map_list_of // Yo dawg, this is the secret. Checkpoint 0 hash == Genesis block hash.
+        (           405001, uint256("0xa375516fe1d5ea83673a6a4c047eb24dd32ae08549197ad4021fcdb8e2140f92"))
+        (           350001, uint256("0xeaddc0e9529f388dc63bf981850c873a667dd610155d06c375d0244a1530d494"))
+        (           260001, uint256("0xf562d6434a9849b21cd8a961776dcdcc7485b8ea969a0ab9f2ca55b5c8cceef1"))
+        (           220000, uint256("0xa2155b206f7c3cbe66ff284ea9a4607bdaddc6bd5a657f87f9bae9cab90dce41"))
+        (           198000, uint256("0x3a47fe1a3f8f17c6c6fe447e6313cb4994b1bd7eb2b3f2fa1d5178b9af797f1b"))
         (           176976, uint256("0x47dcbd7ff79b5c8008a0e0d77e6c8ec1ee10841fdae3140bc55b7b3d197996c7"))
         (           164264, uint256("0x83f5e0d8f3032ceb25aada77bb79e67209fd15f9810e2e95074c901442d903c5"))
         (           126744, uint256("0x6170444f83c4d0a078660d34a2f7fd76af28f74cb559d56d53e118c6575b5e62"))
@@ -194,9 +206,7 @@ namespace Checkpoints
         (            37030, uint256("0x38b86db28b2844c26135a805e972622807a8dad0f482920ad2a12818d184357a"))
         (            13302, uint256("0x00c8624caed4946880e3c77906d08feba8cea04f239653e0a7afdeb9d6e150c6"))
         (             7699, uint256("0x61371251d4849847ecb89f205c72f0256e846dd6633ae42919fc96e54043073f"))
-        (             7700, uint256("0xd773120542281ff15cbd37ba10e37215a012eab57933933788493699de39330e"))
         (             7729, uint256("0xaf7ccbf3137b2267be129c7602eec11eb4da2a2a7890d4f3afa65f6cffd9e7a2"))
-        (             7730, uint256("0x8f8df82e524441867f9ba35b8f4d57dffed1b3159abab9c563b79885799e6122"))
         (              227, uint256("0x02d735b04ebf2d5c17b1bdaaf7be50168632e5c6910d3b5988575ffdeb69aa04"))
         (               21, uint256("0x269d35a9e8ab866de442fcab8ab2149f5f85255e99a4499fb65fc8cc2fb7c23f"))
         (                0, uint256("0x6916a30b272252db8ea017e9880e3def4d683777e9ee13d5be89bac3641c3709"))                                
@@ -212,14 +222,7 @@ namespace Checkpoints
     static void GetCheckpointsFile () {  
        #ifdef DCHECKPOINT
        std::string strBuffer;            
-       //if (is_astato_node()) {
-       //    chkaddr = "file://"+GetDataDir().string() + "/checkpoints.db"; 
-       //    std::ifstream in(chkaddr.c_str());
-       //    readBuffer << in.rdbuf();
-       //    if (verbose) std::cout << "Local file content: " << readBuffer;
-       //} else {
-           readBuffer << GetChkContent(chkaddr,addrport);
-       //} 
+       readBuffer << GetChkContent(chkaddr,addrport);
       if (verbose) {
           std::cout << "Carregado " << 1 << std::endl;
           std::cout << "Conteudo do buffer: " << readBuffer.str() << std::endl << "Fim do conteudo do buffer" << std::endl;
@@ -310,16 +313,21 @@ namespace Checkpoints
         if (fTestNet) return true; // Testnet has no checkpoints
         MapCheckpoints::const_iterator i = mapCheckpoints.find(nHeight);
         if (i == mapCheckpoints.end()) {
-           if (verbose) std::cout << "Block: "<< nHeight << " not is Check Point" << std::endl; 
+           if (verbose) std::cout << "Block: "<< nHeight << " not is Check Point" << std::endl;       
+           #ifdef LINUX
+             #ifdef QT_GUI
+              std::cout << "Block: "<< nHeight << std::endl; 
+             #endif
+           #endif     
            return true;
         }
         if (verbose) {
            if (hash == i->second) {
                std::cout << "Check Point: "<< nHeight <<" Loaded Hash: " << i->second.ToString() << std::endl;
            } else {
-               std::cout << "Verify Block: "<< nHeight <<" Possible hash check point conflict: " << i->second.ToString() << std::endl;
+               std::cout << "Verify Block: "<< nHeight <<" Hash check point conflict: " << i->second.ToString() << std::endl;
            }
-        }
+        }        
         return hash == i->second;
     }
 
@@ -355,7 +363,7 @@ namespace Checkpoints
               checkpointloadintervalcount = 0;
            }           
        }
-       #endif
+       #endif    
        return true;
     }
 

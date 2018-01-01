@@ -59,6 +59,8 @@
 
 #include <iostream>
 
+bool iconsyncset = false;
+
 BitcoinGUI::BitcoinGUI(QWidget *parent):
     QMainWindow(parent),
     clientModel(0),
@@ -177,6 +179,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     connect(addressBookPage, SIGNAL(verifyMessage(QString)), this, SLOT(gotoVerifyMessageTab(QString)));
     // Clicking on "Sign Message" in the receive coins page sends you to the sign message tab
     connect(receiveCoinsPage, SIGNAL(signMessage(QString)), this, SLOT(gotoSignMessageTab(QString)));
+   
 
     gotoOverviewPage();
 }
@@ -228,6 +231,10 @@ void BitcoinGUI::createActions()
     sendCoinsAction->setCheckable(true);
     sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
     tabGroup->addAction(sendCoinsAction);
+
+
+
+
 
     signMessageAction = new QAction(QIcon(":/icons/edit"), tr("Sign &message..."), this);
     signMessageAction->setToolTip(tr("Sign a message to prove you own a Bitcoin address"));
@@ -381,11 +388,15 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         }
 
         // Keep up to date with client
+        
+        
         setNumConnections(clientModel->getNumConnections());
         connect(clientModel, SIGNAL(numConnectionsChanged(int)), this, SLOT(setNumConnections(int)));
 
         setNumBlocks(clientModel->getNumBlocks(), clientModel->getNumBlocksOfPeers());
         connect(clientModel, SIGNAL(numBlocksChanged(int,int)), this, SLOT(setNumBlocks(int,int)));
+
+
 
         //setMining(false, 0);
         //connect(clientModel, SIGNAL(miningChanged(bool,int)), this, SLOT(setMining(bool,int)));
@@ -429,9 +440,12 @@ void BitcoinGUI::setWalletModel(WalletModel *walletModel)
     }
 }
 
+
 void BitcoinGUI::createTrayIcon()
 {
     QMenu *trayIconMenu;
+
+
 #ifndef Q_WS_MAC
     trayIcon = new QSystemTrayIcon(this);
     trayIconMenu = new QMenu(this);
@@ -508,11 +522,18 @@ void BitcoinGUI::setNumConnections(int count)
     }
     labelConnectionsIcon->setPixmap(QIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
     labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Astato network", "", count));
+    if (count > 0 && !iconsyncset) {
+      iconsyncset = true;  
+      labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+      labelBlocksIcon->setToolTip("Waiting for last blocks or delayed transactions.<br>We thank the miners who would like to contribute their hashrate.<br>");
+    }
 }
 
+
 void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
-{
+{   
     // don't show / hide progressBar and it's label if we have no connection(s) to the network
+
     if (!clientModel || clientModel->getNumConnections() == 0)
     {
         progressBarLabel->setVisible(false);
@@ -522,6 +543,7 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     }
 
     QString tooltip;
+    
 
     if(count < nTotalBlocks)
     {
@@ -546,14 +568,14 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
         tooltip = tr("Downloaded %1 of %2 blocks of transaction history (%3% done).").arg(count).arg(nTotalBlocks).arg(nPercentageDone, 0, 'f', 2);
     }
     else
-    {
+    {        
         if (clientModel->getStatusBarWarnings() == "")
             progressBarLabel->setVisible(false);
         else
         {
             progressBarLabel->setText(clientModel->getStatusBarWarnings());
             progressBarLabel->setVisible(true);
-        }
+        }        
         progressBar->setVisible(false);
         tooltip = tr("Downloaded %1 blocks of transaction history.").arg(count);
     }
@@ -588,19 +610,29 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     }
 
     // Set icon state: spinning if catching up, tick otherwise
-    if(secs < 90*60 && count >= nTotalBlocks)
+    if(secs < 60*60 || count >= nTotalBlocks)
     {
-        tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-        labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-
-        overviewPage->showOutOfSyncWarning(false);
+        if (secs < 60*60) {
+            tooltip = tr("Up to date") + QString(".<br>") + tooltip;
+            overviewPage->showOutOfSyncWarning(false);
+        } else {
+           if (secs > 24 * 60 * 60) {
+               tooltip = tr("Up to date") + QString("<br>Waiting for news blocks after last checkpoint for this wallet.<br>") + tooltip;
+               labelBlocksIcon->setMovie(syncIconMovie);
+               syncIconMovie->start();
+               overviewPage->showOutOfSyncWarning(true);
+            }  else {
+               tooltip = tr("Up to date") + QString("<br>Waiting for today blocks or delayed transactions.<br>We thank the miners who would like to contribute their hashrate.<br>") + tooltip;
+               overviewPage->showOutOfSyncWarning(false);
+               labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));               
+            }
+        }        
     }
     else
     {
         tooltip = tr("Catching up...") + QString("<br>") + tooltip;
         labelBlocksIcon->setMovie(syncIconMovie);
         syncIconMovie->start();
-
         overviewPage->showOutOfSyncWarning(true);
     }
 
@@ -616,6 +648,7 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
+
 }
 
 /*
