@@ -1,4 +1,4 @@
-#export PATH=/bin:/usr/bin:../mxe:../mxe/usr/bin:$PATH
+export PATH=/bin:/usr/bin:../mxe:../mxe/usr/bin:$PATH
 make -f qt-win
 cd release
 upx -9 astato-qt.exe

@@ -1,6 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Copyright (c) 2011-2012 Litecoin Developers.
+// Copyright (c) 2017 Astato Developers.
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -828,8 +829,18 @@ uint256 static GetOrphanRoot(const CBlock* pblock)
 }
 
 int64 static GetBlockValue(int nHeight, int64 nFees)
-{
-    int64 nSubsidy = 25 * COIN;
+{    
+    int64 nSubsidy;
+    if (nHeight > 3000000) {
+        nSubsidy = 3.125 * COIN;
+    } else 
+    if (nHeight > 2500000) {
+        nSubsidy = 6.25 * COIN;
+    } else
+    if (nHeight > 2000000) {
+        nSubsidy = 12.5 * COIN;
+    } else 
+      nSubsidy = 25 * COIN; 
 
     return nSubsidy + nFees;
 
@@ -837,7 +848,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 
 
 static const int64 nTargetSpacing = 20; // Astato: 20 sec blocks
-static const int64 nTargetTimespan = 1 * 1 * 30 * 60; // Astato: 1 days
+static const int64 nTargetTimespan = 1 * 1 * 30 * 60; // Astato: 1800 sec
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 // Thanks: Balthazar for suggesting the following fix
@@ -901,7 +912,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return pindexLast->nBits;
     }
 
-    // Litecoin: This fixes an issue where a 51% attack can change difficulty at will.
+    // Astato: This fixes an issue where a 51% attack can change difficulty at will.
     // Go back the full period unless it's the first retarget after genesis. Code courtesy of Art Forz
     int blockstogoback = nInterval-1;
     if ((pindexLast->nHeight+1) != nInterval)

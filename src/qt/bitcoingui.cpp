@@ -614,17 +614,19 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     {
         if (secs < 60*60) {
             tooltip = tr("Up to date") + QString(".<br>") + tooltip;
-            overviewPage->showOutOfSyncWarning(false);
+            labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));     
+            overviewPage->showOutOfSyncWarning(false);                    
         } else {
            if (secs > 24 * 60 * 60) {
                tooltip = tr("Up to date") + QString("<br>Waiting for news blocks after last checkpoint for this wallet.<br>") + tooltip;
                labelBlocksIcon->setMovie(syncIconMovie);
                syncIconMovie->start();
                overviewPage->showOutOfSyncWarning(true);
-            }  else {
-               tooltip = tr("Up to date") + QString("<br>Waiting for today blocks or delayed transactions.<br>We thank the miners who would like to contribute their hashrate.<br>") + tooltip;
+            }  else {             
+               tooltip = tr("Up to date") + QString("<br>Waiting for today blocks or delayed transactions.<br>We thank the miners who would like to contribute their hashrate.<br>") + tooltip;      
+               labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));            
                overviewPage->showOutOfSyncWarning(false);
-               labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));               
+                             
             }
         }        
     }
