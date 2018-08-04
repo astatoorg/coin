@@ -20,4 +20,7 @@ Target spacing   20 sec
 Transaction confirmations   8 blocks
 Seednode 1   node001.astato.org
 Seednode 2   node002.astato.org
+<<<<<<< HEAD
 
+=======
+>>>>>>> e4fa53cbdd6898100a57e9246536065d081ae7a4
