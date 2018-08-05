@@ -830,7 +830,7 @@ uint256 static GetOrphanRoot(const CBlock* pblock)
 
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {    
-    //return to original project fork dont downloaded by miners constant reward 25 coin per block until block 7224000, above 1 coin per Block.
+
     
     int64 nSubsidy;
     if (nHeight > 7224000) {
